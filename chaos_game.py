@@ -76,11 +76,9 @@ def draw_text(surface, text, font, color, x, y):
 
 def main():
     pygame.init()
-    # FULL SCREEN trực tiếp
-    infoObject = pygame.display.Info()
-    W, H = infoObject.current_w, infoObject.current_h
-    # Nếu muốn dễ debug, đổi thành pygame.RESIZABLE. Nhưng anh muốn FULLSCREEN.
-    screen = pygame.display.set_mode((W, H), pygame.FULLSCREEN)
+    # FULL SCREEN trực tiếp, tự lấy kích thước chuẩn của hệ điều hành
+    screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+    W, H = screen.get_size()
     pygame.display.set_caption("Chaos Matrix - Ultimate Edition")
     font = pygame.font.SysFont("Consolas", 24)
     big_font = pygame.font.SysFont("Consolas", 48, bold=True)
@@ -159,10 +157,28 @@ def main():
                         state = "MENU" # Về lại màn hình menu để nhập
                     
                     # Chỉnh Speed On-the-fly
-                    elif event.key == pygame.K_RIGHTBRACKET or event.key == pygame.K_UP:
+                    elif event.key == pygame.K_RIGHTBRACKET:
                         points_per_frame += 100
-                    elif event.key == pygame.K_LEFTBRACKET or event.key == pygame.K_DOWN:
+                    elif event.key == pygame.K_LEFTBRACKET:
                         points_per_frame = max(1, points_per_frame - 100)
+                        
+                    # Chỉnh Modulo On-the-fly
+                    elif event.key == pygame.K_UP:
+                        engine.mod_value += 10
+                        engine.reset(engine.seed_matrix)
+                        canvas.fill((15, 15, 20))
+                    elif event.key == pygame.K_DOWN:
+                        engine.mod_value = max(1, engine.mod_value - 10)
+                        engine.reset(engine.seed_matrix)
+                        canvas.fill((15, 15, 20))
+                    elif event.key == pygame.K_RIGHT:
+                        engine.mod_value += 1
+                        engine.reset(engine.seed_matrix)
+                        canvas.fill((15, 15, 20))
+                    elif event.key == pygame.K_LEFT:
+                        engine.mod_value = max(1, engine.mod_value - 1)
+                        engine.reset(engine.seed_matrix)
+                        canvas.fill((15, 15, 20))
 
         # Logic Update & Draw
         if state == "MENU":
@@ -196,10 +212,10 @@ def main():
             
             # UI Overlay
             color_u = (0, 255, 150)
-            draw_text(screen, f"MOD: {engine.mod_value}", font, color_u, 20, H - 120)
+            draw_text(screen, f"MOD: {engine.mod_value} (Chỉnh bằng phím Mũi Tên)", font, color_u, 20, H - 120)
             draw_text(screen, f"SEED: {engine.seed_matrix}", font, color_u, 20, H - 90)
-            draw_text(screen, f"SPEED: {points_per_frame} pts/frame (Phím UP/DOWN)", font, color_u, 20, H - 60)
-            draw_text(screen, f"ESC: Menu | SPACE: Pause | R: Random | S: Save | Iter: {engine.iteration}", font, (255, 255, 255), 20, H - 30)
+            draw_text(screen, f"SPEED: {points_per_frame} pts/frame (Chỉnh bằng phím [ và ])", font, color_u, 20, H - 60)
+            draw_text(screen, f"Phím tắt: ESC: Menu | SPACE: Dừng/Chạy | R: Random | S: Lưu Hình", font, (255, 255, 255), 20, H - 30)
 
             pygame.display.flip()
             clock.tick(FPS)
