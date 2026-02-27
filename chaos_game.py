@@ -4,8 +4,7 @@ import sys
 import colorsys
 from linear.det import det2, op_det2
 
-# Cấu hình màn hình
-WIDTH, HEIGHT = 900, 900 # Sẽ bị override bởi Fullscreen
+# Cấu hình
 FPS = 60
 
 class ChaosEngine:
