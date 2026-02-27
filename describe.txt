@@ -1,0 +1,17 @@
+Hệ động lực rời rạc bậc 2 đơn giản trong lúc mơ
+
+Cho 1 ma trận vuông 2*2 bất kỳ có det=1 gọi chung là nhóm SL(2,Z)
+
+Thông qua phép biến đổi sau:
+
+xo x1 x2 x3,...,
+yo y1 y2 y3,...
+
+x2= x0y1-x1y0 (det của ma trận vuông ban đầu)
+y2= y0x2-x1y1 (âm của det ma trận hình bình hành)
+x3= x1y2-x2y1 
+y3= y1x3-x2y2
+x(n+1)=x(n-1)y(n)-x(n)y(n-1)
+y(n+1)=y(n-1)x(n-1)-x(n)y(n)
+
+
