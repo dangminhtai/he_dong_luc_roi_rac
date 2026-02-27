@@ -5,10 +5,8 @@ import colorsys
 from linear.det import det2, op_det2
 
 # Cấu hình màn hình
-WIDTH, HEIGHT = 900, 900
+WIDTH, HEIGHT = 900, 900 # Sẽ bị override bởi Fullscreen
 FPS = 60
-POINTS_PER_FRAME = 2000 
-POINT_SIZE = 3          
 
 class ChaosEngine:
     def __init__(self, seed_matrix=None, mod_value=2025):
@@ -29,7 +27,7 @@ class ChaosEngine:
         self.last_pos = (0, 0)
         self.collapse_count = 0
 
-    def next_point(self):
+    def next_point(self, width, height):
         try:
             new_matrix = [row[-2:] for row in self.result_matrix]
             
@@ -45,8 +43,8 @@ class ChaosEngine:
             
             self.iteration += 1
             
-            x_plot = int(xi * WIDTH / self.mod_value)
-            y_plot = int(yi * HEIGHT / self.mod_value)
+            x_plot = int(xi * width / self.mod_value)
+            y_plot = int(yi * height / self.mod_value)
             
             if (x_plot, y_plot) == self.last_pos:
                 self.collapse_count += 1
@@ -70,102 +68,141 @@ class ChaosEngine:
             return (x_plot, y_plot), color
         except Exception:
             self.reset(self.seed_matrix)
-            return (WIDTH//2, HEIGHT//2), (255, 255, 255)
+            return (width//2, height//2), (255, 255, 255)
+
+def draw_text(surface, text, font, color, x, y):
+    obj = font.render(text, True, color)
+    surface.blit(obj, (x, y))
 
 def main():
     pygame.init()
-    screen = pygame.display.set_mode((WIDTH, HEIGHT))
-    pygame.display.set_caption("Chaos Matrix - Pro Controller")
-    font = pygame.font.SysFont("Consolas", 18)
+    # FULL SCREEN trực tiếp
+    infoObject = pygame.display.Info()
+    W, H = infoObject.current_w, infoObject.current_h
+    # Nếu muốn dễ debug, đổi thành pygame.RESIZABLE. Nhưng anh muốn FULLSCREEN.
+    screen = pygame.display.set_mode((W, H), pygame.FULLSCREEN)
+    pygame.display.set_caption("Chaos Matrix - Ultimate Edition")
+    font = pygame.font.SysFont("Consolas", 24)
+    big_font = pygame.font.SysFont("Consolas", 48, bold=True)
     clock = pygame.time.Clock()
     
-    canvas = pygame.Surface((WIDTH, HEIGHT))
-    canvas.fill((20, 20, 25)) 
+    canvas = pygame.Surface((W, H))
+    canvas.fill((15, 15, 20)) 
     
-    # Khởi tạo với cấu hình hiện tại của anh
-    current_seed = [[7, 3], [2, 1]]
-    current_mod = 2025
-    engine = ChaosEngine(current_seed, current_mod) 
+    # State quản lý UI in-game
+    state = "MENU" # Có thể là "MENU" hoặc "PLAYING"
     
-    running = True
+    # Input field vars
+    inputs = ["2024", "7 3 2 1", "2000"]
+    active_field = 0
+    prompts = ["MOD_VALUE:", "SEED (4 số cách nhau):", "SPEED (Điểm/frame):"]
+    
+    engine = None
+    points_per_frame = 2000
+    point_size = 3
     paused = False
     
-    print("\n--- VERSION 2.2: ĐIỀU KHIỂN NÂNG CAO ---")
-    print("UP/DOWN: Tăng/Giảm Modulo (±10)")
-    print("LEFT/RIGHT: Tăng/Giảm Modulo (±1)")
-    print("C: Nhập Seed/Mod mới từ Terminal")
-    print("R: Random Seed | S: Screenshot | SPACE: Pause")
-    
+    running = True
+
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+            
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_r:
-                    engine.reset()
-                    canvas.fill((20, 20, 25))
-                if event.key == pygame.K_s:
-                    pygame.image.save(canvas, f"chaos_{engine.mod_value}_{engine.iteration}.png")
-                    print("Đã lưu ảnh!")
-                if event.key == pygame.K_SPACE:
-                    paused = not paused
+                if event.key == pygame.K_ESCAPE:
+                    # Trong game bấm ESC để ra menu, ở menu bấm ESC để thoát
+                    if state == "PLAYING":
+                        state = "MENU"
+                    else:
+                        running = False
+                        
+                if state == "MENU":
+                    if event.key == pygame.K_UP:
+                        active_field = max(0, active_field - 1)
+                    elif event.key == pygame.K_DOWN:
+                        active_field = min(len(inputs) - 1, active_field + 1)
+                    elif event.key == pygame.K_RETURN:
+                        # Parse và Start Game
+                        try:
+                            mod_val = int(inputs[0]) if inputs[0].strip() else 2025
+                            raw_mat = inputs[1].split()
+                            if len(raw_mat) == 4:
+                                seed_mat = [[int(raw_mat[0]), int(raw_mat[1])], [int(raw_mat[2]), int(raw_mat[3])]]
+                            else:
+                                seed_mat = [[7, 3], [2, 1]]
+                            points_per_frame = int(inputs[2]) if inputs[2].strip() else 2000
+                            
+                            engine = ChaosEngine(seed_mat, mod_val)
+                            canvas.fill((15, 15, 20))
+                            state = "PLAYING"
+                            paused = False
+                        except ValueError:
+                            pass # Bỏ qua nếu nhập bậy bạ
+                            
+                    elif event.key == pygame.K_BACKSPACE:
+                        inputs[active_field] = inputs[active_field][:-1]
+                    else:
+                        # Chỉ cho phép gõ số, khoảng trắng hoặc dấu trừ
+                        if event.unicode.isdigit() or event.unicode in [' ', '-']:
+                            inputs[active_field] += event.unicode
+                            
+                elif state == "PLAYING":
+                    if event.key == pygame.K_r:
+                        engine.reset()
+                        canvas.fill((15, 15, 20))
+                    elif event.key == pygame.K_s:
+                        pygame.image.save(canvas, f"chaos_mtx_{engine.mod_value}_{engine.iteration}.png")
+                    elif event.key == pygame.K_SPACE:
+                        paused = not paused
+                    elif event.key == pygame.K_c or event.key == pygame.K_m:
+                        state = "MENU" # Về lại màn hình menu để nhập
+                    
+                    # Chỉnh Speed On-the-fly
+                    elif event.key == pygame.K_RIGHTBRACKET or event.key == pygame.K_UP:
+                        points_per_frame += 100
+                    elif event.key == pygame.K_LEFTBRACKET or event.key == pygame.K_DOWN:
+                        points_per_frame = max(1, points_per_frame - 100)
+
+        # Logic Update & Draw
+        if state == "MENU":
+            screen.fill((30, 30, 40))
+            draw_text(screen, "CHAOS MATRIX SETTINGS", big_font, (0, 255, 150), 50, 50)
+            
+            draw_text(screen, "Điền thông số và nhấn ENTER để chạy hình, ESC để thoát.", font, (200, 200, 200), 50, 120)
+            
+            y_offset = 200
+            for i, prompt in enumerate(prompts):
+                color = (255, 255, 0) if i == active_field else (150, 150, 150)
+                draw_text(screen, prompt, font, color, 50, y_offset)
                 
-                # Điều chỉnh Modulo
-                if event.key == pygame.K_UP:
-                    engine.mod_value += 10
-                    engine.reset(engine.seed_matrix)
-                    canvas.fill((20, 20, 25))
-                if event.key == pygame.K_DOWN:
-                    engine.mod_value = max(1, engine.mod_value - 10)
-                    engine.reset(engine.seed_matrix)
-                    canvas.fill((20, 20, 25))
-                if event.key == pygame.K_RIGHT:
-                    engine.mod_value += 1
-                    engine.reset(engine.seed_matrix)
-                    canvas.fill((20, 20, 25))
-                if event.key == pygame.K_LEFT:
-                    engine.mod_value = max(1, engine.mod_value - 1)
-                    engine.reset(engine.seed_matrix)
-                    canvas.fill((20, 20, 25))
+                # Vẽ khung dỏm
+                pygame.draw.rect(screen, color, (350, y_offset - 5, 400, 35), 2)
+                draw_text(screen, inputs[i] + ("_" if i == active_field else ""), font, (255, 255, 255), 360, y_offset)
                 
-                # Nhập từ terminal
-                if event.key == pygame.K_c:
-                    print("\n--- NHẬP THÔNG SỐ MỚI ---")
-                    try:
-                        new_mod = int(input("Nhập MOD_VALUE mới (mặc định 2025): ") or engine.mod_value)
-                        print("Nhập ma trận 2x2 (ví dụ: 7 3 2 1):")
-                        raw_mat = input().split()
-                        if len(raw_mat) == 4:
-                            new_seed = [
-                                [int(raw_mat[0]), int(raw_mat[1])],
-                                [int(raw_mat[2]), int(raw_mat[3])]
-                            ]
-                            engine.mod_value = new_mod
-                            engine.reset(new_seed)
-                            canvas.fill((20, 20, 25))
-                            print(f"Đã cập nhật: Mod={new_mod}, Seed={new_seed}")
-                    except ValueError:
-                        print("Lỗi định dạng, vui lòng nhập số!")
+                y_offset += 70
+                
+            draw_text(screen, "Trò chơi hỗ trợ: Mũi tên (chọn dòng), Nhập Số, Backspace, Enter.", font, (100, 100, 100), 50, H - 50)
+            pygame.display.flip()
+            clock.tick(30)
+            
+        elif state == "PLAYING":
+            if not paused and engine:
+                for _ in range(points_per_frame):
+                    pos, color = engine.next_point(W, H) # Truyền W, H vào
+                    pygame.draw.rect(canvas, color, (pos[0], pos[1], point_size, point_size))
 
-        if not paused:
-            for _ in range(POINTS_PER_FRAME):
-                pos, color = engine.next_point()
-                pygame.draw.rect(canvas, color, (pos[0], pos[1], POINT_SIZE, POINT_SIZE))
+            screen.blit(canvas, (0, 0))
+            
+            # UI Overlay
+            color_u = (0, 255, 150)
+            draw_text(screen, f"MOD: {engine.mod_value}", font, color_u, 20, H - 120)
+            draw_text(screen, f"SEED: {engine.seed_matrix}", font, color_u, 20, H - 90)
+            draw_text(screen, f"SPEED: {points_per_frame} pts/frame (Phím UP/DOWN)", font, color_u, 20, H - 60)
+            draw_text(screen, f"ESC: Menu | SPACE: Pause | R: Random | S: Save | Iter: {engine.iteration}", font, (255, 255, 255), 20, H - 30)
 
-        screen.blit(canvas, (0, 0))
-        
-        # UI Overlay rực rỡ
-        color_val = (0, 255, 100)
-        overlay1 = font.render(f"MOD: {engine.mod_value} (Arrows to change)", True, color_val)
-        overlay2 = font.render(f"SEED: {engine.seed_matrix} (C to edit)", True, color_val)
-        overlay3 = font.render(f"POINTS: {engine.iteration}", True, color_val)
-        
-        screen.blit(overlay1, (10, HEIGHT - 80))
-        screen.blit(overlay2, (10, HEIGHT - 55))
-        screen.blit(overlay3, (10, HEIGHT - 30))
-
-        pygame.display.flip()
-        clock.tick(FPS)
+            pygame.display.flip()
+            clock.tick(FPS)
 
     pygame.quit()
     sys.exit()
